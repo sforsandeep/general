@@ -28,11 +28,11 @@ public class CustomersController : ControllerBase
         try
         {
             _customerRepository.UpdateCustomerName(customerId, dto.Name);
-            return Ok();
+            return Ok("Customer Details Updated");
         }
         catch (ArgumentException ex)
         {
-            _logger.LogError(ex, "Error updating customer name");
+            _logger.LogError(ex, "Error updating customer name. No such customer exists");
             return NotFound(ex.Message);
         }
     }
