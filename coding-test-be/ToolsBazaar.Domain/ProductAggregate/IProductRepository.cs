@@ -3,4 +3,5 @@
 public interface IProductRepository
 {
     IEnumerable<Product> GetAll();
+    IEnumerable<Product> GetMostExpensive();
 }

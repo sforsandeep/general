@@ -1,12 +1,17 @@
 using Microsoft.AspNetCore.Localization;
+using ToolsBazaar.Domain.CustomerAggregate;
+using ToolsBazaar.Domain.OrderAggregate;
 using ToolsBazaar.Domain.ProductAggregate;
 using ToolsBazaar.Persistence;
+using ToolsBazaar.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddTransient<IProductRepository, ProductRepository>();
-
+builder.Services.AddTransient<ICustomerRepository, CustomerRepository>();
+builder.Services.AddTransient<IOrderRepository, OrderRepository>();
+builder.Services.AddTransient<CustomerSpendingService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 var app = builder.Build();
