@@ -1,0 +1,7 @@
+# Ignore:
+.vscode
+node_modules
+src/libs/chart-iq
+src/libs/semantic-ui-css
+build/
+public/*
