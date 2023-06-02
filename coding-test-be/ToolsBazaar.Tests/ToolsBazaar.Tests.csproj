@@ -29,6 +29,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\ToolsBazaar.Domain\ToolsBazaar.Domain.csproj" />
 		<ProjectReference Include="..\ToolsBazaar.Persistence\ToolsBazaar.Persistence.csproj" />
+		<ProjectReference Include="..\ToolsBazaar.Web\ToolsBazaar.Web.csproj" />
 	</ItemGroup>
 
 </Project>
