@@ -1,0 +1,55 @@
+using Azure;
+using Azure.Storage.Files.DataLake;
+using Azure.Identity;
+using System;
+
+namespace BlobStorageDemo
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            string accountName = "your_storage_account_name";
+            string serviceUrl = $"https://{accountName}.dfs.core.windows.net";
+            string sourceContainerName = "source_container_name";
+            string destinationContainerName = "destination_container_name";
+            string sourceFilePath = "source_file_path";
+            string destinationFilePath = "destination_file_path";
+
+            var credential = new DefaultAzureCredential();
+
+            var sourceDataLakeClient = new DataLakeFileSystemClient(new Uri($"{serviceUrl}/{sourceContainerName}"), credential);
+            var destinationDataLakeClient = new DataLakeFileSystemClient(new Uri($"{serviceUrl}/{destinationContainerName}"), credential);
+
+            var sourceDataLakeFileClient = sourceDataLakeClient.GetFileClient(sourceFilePath);
+
+            // Ensure the destination path exists
+            var destinationDirectoryClient = destinationDataLakeClient.GetDirectoryClient(System.IO.Path.GetDirectoryName(destinationFilePath));
+            destinationDirectoryClient.CreateIfNotExists();
+
+            var destinationDataLakeFileClient = destinationDataLakeClient.GetFileClient(destinationFilePath);
+
+            if (sourceDataLakeFileClient.Exists())
+            {
+                // Start the copy operation from source to destination
+                destinationDataLakeFileClient.StartCopyFromUri(new Uri(sourceDataLakeFileClient.Uri.ToString()));
+
+                // Verify that copy has completed, for demonstration purposes.
+                while (destinationDataLakeFileClient.GetProperties().Value.CopyStatus == Azure.Storage.Blobs.Models.CopyStatus.Pending)
+                {
+                    System.Threading.Thread.Sleep(1000);
+                }
+
+                if (destinationDataLakeFileClient.GetProperties().Value.CopyStatus == Azure.Storage.Blobs.Models.CopyStatus.Success)
+                {
+                    // After the successful copy, you can delete the file from the source container.
+                    sourceDataLakeFileClient.DeleteIfExists();
+                }
+            }
+            else
+            {
+                Console.WriteLine("Source file does not exist.");
+            }
+        }
+    }
+}
