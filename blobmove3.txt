@@ -1,0 +1,60 @@
+using Azure.Storage.Blobs;
+using Azure.Identity;
+using System;
+using System.IO;
+
+namespace BlobStorageDemo
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            string sourceFilePath = "general/landing/test/2023/8/16/file1.txt";
+            string destinationPath = "secure/folder/test/2023/8/18";
+            string fileName = "file.txt"; 
+
+            MoveFile(sourceFilePath, destinationPath, fileName);
+        }
+
+        static void MoveFile(string sourceFilePath, string destinationPath, string fileName)
+        {
+            string accountName = "your_storage_account_name";
+            string serviceUrl = $"https://{accountName}.blob.core.windows.net";
+
+            var credential = new DefaultAzureCredential();
+
+            string sourceContainer = sourceFilePath.Split('/')[0];
+            string sourceFileSubPath = Path.Combine(sourceFilePath.Substring(sourceContainer.Length + 1), fileName);
+            string destinationContainer = destinationPath.Split('/')[0];
+            string destinationFileSubPath = Path.Combine(destinationPath.Substring(destinationContainer.Length + 1), fileName);
+
+            var sourceBlobClient = new BlobClient(new Uri($"{serviceUrl}/{sourceContainer}/{sourceFileSubPath}"), credential);
+            var destinationBlobClient = new BlobClient(new Uri($"{serviceUrl}/{destinationContainer}/{destinationFileSubPath}"), credential);
+
+            if (sourceBlobClient.Exists())
+            {
+                // Start the copy operation from source to destination
+                var copyOperation = destinationBlobClient.StartCopyFromUri(sourceBlobClient.Uri);
+
+                // Verify that copy has completed, for demonstration purposes.
+                BlobProperties properties;
+                do
+                {
+                    System.Threading.Thread.Sleep(1000);
+                    properties = destinationBlobClient.GetProperties();
+                }
+                while (properties.CopyStatus == CopyStatus.Pending);
+
+                if (properties.CopyStatus == CopyStatus.Success)
+                {
+                    // After the successful copy, delete the blob from the source container.
+                    sourceBlobClient.DeleteIfExists();
+                }
+            }
+            else
+            {
+                Console.WriteLine("Source blob does not exist.");
+            }
+        }
+    }
+}
