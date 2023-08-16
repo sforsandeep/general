@@ -1,0 +1,63 @@
+using Azure;
+using Azure.Storage.Files.DataLake;
+using System;
+using System.Threading.Tasks;
+
+public class ADLSGen2Mover
+{
+    private readonly string _accountName;
+    private readonly DataLakeServiceClient _serviceClient;
+
+    public ADLSGen2Mover(string accountName)
+    {
+        _accountName = accountName;
+        _serviceClient = new DataLakeServiceClient(new Uri($"https://{accountName}.dfs.core.windows.net"), new DefaultAzureCredential());
+    }
+
+    public async Task<bool> MoveFileAsync(string sourceFilePath, string destinationPath, string fileName)
+    {
+        // Parse paths to get container names and file/directory paths
+        string sourceContainer = sourceFilePath.Split('/')[0];
+        string sourceFileSubPath = sourceFilePath.Substring(sourceContainer.Length + 1);
+
+        string destinationContainer = destinationPath.Split('/')[0];
+        string destinationDirectorySubPath = destinationPath.Substring(destinationContainer.Length + 1);
+        string destinationFileSubPath = destinationDirectorySubPath + "/" + fileName;
+
+        // Create FileSystemClient for the source container and destination container
+        DataLakeFileSystemClient sourceFileSystemClient = _serviceClient.GetFileSystemClient(sourceContainer);
+        DataLakeFileSystemClient destinationFileSystemClient = _serviceClient.GetFileSystemClient(destinationContainer);
+
+        // Check if the source file exists
+        DataLakeFileClient sourceFileClient = sourceFileSystemClient.GetFileClient(sourceFileSubPath);
+        if (!await sourceFileClient.ExistsAsync())
+        {
+            Console.WriteLine($"Source file '{sourceFilePath}' does not exist.");
+            return false;
+        }
+
+        // Ensure the destination directory exists; if not, create it
+        DataLakeDirectoryClient destinationDirectoryClient = destinationFileSystemClient.GetDirectoryClient(destinationDirectorySubPath);
+        if (!await destinationDirectoryClient.ExistsAsync())
+        {
+            await destinationDirectoryClient.CreateIfNotExistsAsync();
+        }
+
+        // Rename (move) the source file to the destination
+        try
+        {
+            await sourceFileClient.RenameAsync($"$/{destinationContainer}/{destinationFileSubPath}");
+            Console.WriteLine($"Moved file from '{sourceFilePath}' to '{destinationPath}/{fileName}'.");
+            return true;
+        }
+        catch (RequestFailedException ex)
+        {
+            Console.WriteLine($"Failed to move file. Error: {ex.Message}");
+            return false;
+        }
+    }
+}
+
+// Usage:
+// ADLSGen2Mover mover = new ADLSGen2Mover("your_account_name");
+// await mover.MoveFileAsync("sourceContainer/sourcePath/file.txt", "destContainer/destPath", "file.txt");
