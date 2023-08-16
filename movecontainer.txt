@@ -1,28 +1,31 @@
-public async Task<bool> MoveFileBetweenContainersAsync(string sourceFilePath, string destinationPath, string fileName)
+using Azure.Storage.Blobs;
+
+public async Task<bool> MoveBlobBetweenContainersAsync(string sourceFilePath, string destinationPath, string fileName)
 {
     string sourceContainer = sourceFilePath.Split('/')[0];
-    string sourceFileSubPath = sourceFilePath.Substring(sourceContainer.Length + 1);
+    string sourceBlobSubPath = sourceFilePath.Substring(sourceContainer.Length + 1);
 
     string destinationContainer = destinationPath.Split('/')[0];
-    string destinationFileSubPath = destinationPath.Substring(destinationContainer.Length + 1) + "/" + fileName;
+    string destinationBlobSubPath = destinationPath.Substring(destinationContainer.Length + 1) + "/" + fileName;
 
-    DataLakeFileClient sourceFileClient = _serviceClient.GetFileSystemClient(sourceContainer).GetFileClient(sourceFileSubPath);
-    if (!await sourceFileClient.ExistsAsync())
+    BlobClient sourceBlobClient = new BlobClient(new Uri($"https://{accountName}.dfs.core.windows.net/{sourceContainer}/{sourceBlobSubPath}"), new DefaultAzureCredential());
+    BlobClient destinationBlobClient = new BlobClient(new Uri($"https://{accountName}.dfs.core.windows.net/{destinationContainer}/{destinationBlobSubPath}"), new DefaultAzureCredential());
+
+    if (!await sourceBlobClient.ExistsAsync())
     {
-        Console.WriteLine($"Source file '{sourceFilePath}' does not exist.");
+        Console.WriteLine($"Source blob '{sourceFilePath}' does not exist.");
         return false;
     }
 
-    await EnsureDirectoryExistsAsync(_serviceClient.GetFileSystemClient(destinationContainer), destinationPath.Substring(destinationContainer.Length + 1));
+    // Start the server-side copy
+    await destinationBlobClient.StartCopyFromUriAsync(sourceBlobClient.Uri);
 
-    DataLakeFileClient destinationFileClient = _serviceClient.GetFileSystemClient(destinationContainer).GetFileClient(destinationFileSubPath);
-    await destinationFileClient.CreateAsync();
-    var response = await destinationFileClient.AppendAsync(sourceFileClient.OpenQuery(null));
-    await destinationFileClient.FlushAsync(response.Value.ContentLength);
-    
+    // Confirm the copy (in a production scenario, you may want to poll and ensure that the copy has completed successfully)
+    await Task.Delay(TimeSpan.FromSeconds(10));
+
     // Once the copy is successful, delete the original
-    await sourceFileClient.DeleteIfExistsAsync();
+    await sourceBlobClient.DeleteIfExistsAsync();
 
-    Console.WriteLine($"Moved file from '{sourceFilePath}' to '{destinationPath}/{fileName}'.");
+    Console.WriteLine($"Moved blob from '{sourceFilePath}' to '{destinationPath}/{fileName}'.");
     return true;
 }
