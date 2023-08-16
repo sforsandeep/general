@@ -1,0 +1,28 @@
+public async Task<bool> MoveFileBetweenContainersAsync(string sourceFilePath, string destinationPath, string fileName)
+{
+    string sourceContainer = sourceFilePath.Split('/')[0];
+    string sourceFileSubPath = sourceFilePath.Substring(sourceContainer.Length + 1);
+
+    string destinationContainer = destinationPath.Split('/')[0];
+    string destinationFileSubPath = destinationPath.Substring(destinationContainer.Length + 1) + "/" + fileName;
+
+    DataLakeFileClient sourceFileClient = _serviceClient.GetFileSystemClient(sourceContainer).GetFileClient(sourceFileSubPath);
+    if (!await sourceFileClient.ExistsAsync())
+    {
+        Console.WriteLine($"Source file '{sourceFilePath}' does not exist.");
+        return false;
+    }
+
+    await EnsureDirectoryExistsAsync(_serviceClient.GetFileSystemClient(destinationContainer), destinationPath.Substring(destinationContainer.Length + 1));
+
+    DataLakeFileClient destinationFileClient = _serviceClient.GetFileSystemClient(destinationContainer).GetFileClient(destinationFileSubPath);
+    await destinationFileClient.CreateAsync();
+    var response = await destinationFileClient.AppendAsync(sourceFileClient.OpenQuery(null));
+    await destinationFileClient.FlushAsync(response.Value.ContentLength);
+    
+    // Once the copy is successful, delete the original
+    await sourceFileClient.DeleteIfExistsAsync();
+
+    Console.WriteLine($"Moved file from '{sourceFilePath}' to '{destinationPath}/{fileName}'.");
+    return true;
+}
